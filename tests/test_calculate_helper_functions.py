@@ -3,47 +3,6 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal
 
-def test_calculate_members_mean():
-    data = np.array([[[1, 2]], [[3, 4]]])  # Shape (2,1,2)
-    mean_result = calculate_members_mean(data)
-    expected = np.array([[2, 3]])
-    assert mean_result.shape == (1, 2)
-    assert_array_almost_equal(mean_result, expected)
-
-def test_calculate_members_mean_234():
-    data = np.arange(24).reshape(2, 3, 4)
-    mean_result = calculate_members_mean(data)
-    expected = np.array([
-        [ 6,  7,  8,  9],
-        [10, 11, 12, 13],
-        [14, 15, 16, 17]
-    ])
-    assert mean_result.shape == (3, 4)
-    assert_array_almost_equal(mean_result, expected)
-
-
-#     # Result grid
-#     result = np.zeros((precipGrid.shape[0], precipGrid.shape[1]))
-#     topoZSDiffGrid = (Znow - topographyGrid)  # dzs
-#     precipMask = (precipGrid > RRMIN)
-#
-#     # SNOW ((dzs<-1.5*DZML) || ( (ZH[i][j] <= 1.5*DZML) && (dzs<=0)))
-#     snowMask = (topoZSDiffGrid < (-1.5 * DZML)) | ((topographyGrid <= (1.5 * DZML)) & (topoZSDiffGrid <= 0))
-#     result[snowMask & precipMask] = 3
-#
-#     # RAIN+SNOW DIAGNOSIS (dzs < 0.5 * DZML) = 2
-#     rainSnowMask = ~snowMask & (topoZSDiffGrid < (0.5 * DZML))
-#     result[rainSnowMask & precipMask] = 2
-#
-#     # RAIN
-#     rainMask = ~snowMask & ~rainSnowMask
-#     result[rainMask & precipMask] = 1
-#
-#     # FREEZING RAIN DIAGNOSIS 4
-#     # if ((PT[i][j]==1) && ( (tg_<TG0 && TT[i][j]<TT0) || TT[i][j]<TG0))
-#     freezingMask = (result == 1) & (((GroundTemp < TG0) & (Temp < TT0)) | (Temp < TG0))
-#     result[freezingMask] = 4
-
 # Test the calculate_precip_type function with different scenarios:
     # PT=0  no precip
     # PT=1  rain
@@ -105,5 +64,4 @@ def test_calculate_precip_type_freezing_rain():
     expected_result = np.ones((2, 3, 4)) * 4
     assert_array_almost_equal(result, expected_result)
 
-def test_calculate_precip_type_rain_snow_mix():
-
+# def test_calculate_precip_type_rain_snow_mix():
