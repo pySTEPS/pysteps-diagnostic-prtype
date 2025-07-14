@@ -163,5 +163,6 @@ def test_prtype_function():
     print(np.uniqe(prtype_list)) # just for now
     assert np.all(prtype_list[0,:,:] == 4)
     
+    print('-- finished tests --')
     
     
