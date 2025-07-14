@@ -75,10 +75,10 @@ def diagnostic_prtype(precip_field,
       See pysteps.io.importers for metadata doc.
 
     src_timestep : int
-      The time step of the model fields as source. (min)
+      The time step between two consecutive model fields as source. (dt in min)
 
     trgt_timestep : int
-      The time step of the precipitation nowcast as target. (min)
+      The time step  between two consecutive precipitation nowcast as target. (dt in min)
 
     {extra_kwargs_doc}
 
@@ -86,10 +86,10 @@ def diagnostic_prtype(precip_field,
     -------
     output:
         A 2D or 3D array containing the precipitation type mask for every pixel
-        where rain was observed/predicted (in any member if probabilistic input).
-        -> use the mask to apply for individual members afterwards
-        Output arrays take the form [timeStamp, X-coord, Y-coord].
-        Or [X-coord, Y-coord] in the case of observation as input.
+        where rain was observed/predicted.
+        (a rainy pixel is a pixel with rain for any member if probabilistic input -> use the mask to apply for individual members afterwards)
+        Output arrays take the form [time step, precip_field X-coord, precip_field Y-coord].
+        Or [precip_field X-coord, precip_field Y-coord] in the case of observation as input.
     """
 
     # Run checks to ensure correct input parameters

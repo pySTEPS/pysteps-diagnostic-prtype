@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""Tests for `pysteps_diagnostic_prtype` package."""
+"""Tests for `pysteps_diagnostic_prtype` package with artificial data."""
 
 def test_plugins_discovery():
     """It is recommended to at least test that the plugin modules provided by the plugin are
@@ -41,7 +41,8 @@ def test_prtype_function():
     
     # use projection and dimension as in pysteps output with RADQPE (RMI) input
     # precipitation data
-    precip_field = np.random.random((12,700,700))*10
+    precip_field = np.ones((24,700,700))*10 # to fix and control the quantity
+    # precip_field = np.random.random((24,700,700))*10 # add some variability
     projection = "+proj=lcc +lat_1=49.83333333333334 +lat_2=51.16666666666666 +lat_0=50.797815 +lon_0=4.359215833333333 +x_0=649328 +y_0=665262 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs "
     precipMetadataDictionary = {
         'projection':projection,    
@@ -58,7 +59,9 @@ def test_prtype_function():
         'transform': None,
         'zerovalue': 0.0,
         'threshold': 0.10000015050172806,
-        'timestamps':pd.date_range(start=pd.to_datetime(startdate,format='%Y%m%d%H%M'),periods=12,freq='5min')
+        'timestamps':pd.date_range(start=pd.to_datetime(startdate,format='%Y%m%d%H%M')+pd.Timedelta('5min'),
+                                   #pysteps first timestamp is the first nowcast of startdate + 5min
+                                   periods=24,freq='5min')
         }
     
     # mimick the INCA basic fields transformed to a 3D array with
@@ -106,4 +109,59 @@ def test_prtype_function():
     # test the shape
     assert prtype_list.shape == precip_field.shape
     
-    # more tests ?
+    # modify the snow level and temperature data to force rain, snow, freezing rain
+    #### check that all pixels are 0 (no precip) or of expected type
+    #### 0: no precip, 1: rain, 2: melting snow, 3: snow, 4: freezing rain, 5: hail, 6: severe hail
+    # rain everywhere
+    snowLevelData = np.ones((13,size_x,size_y))*1000.
+    temperatureData = np.ones((13,size_x,size_y))*300.    
+    groundTemperatureData = np.ones((13,size_x,size_y))*295.    
+    # test the precip type
+    prtype_list = diagnostic_prtype(precip_field,
+                          precipMetadataDictionary,
+                          startdate,
+                          snowLevelData,
+                          temperatureData,
+                          groundTemperatureData,
+                          modelMetadataDictionary,
+                          topographyData,
+                          topoMetadataDictionary)
+    print(np.uniqe(prtype_list)) # just for now
+    assert np.all(prtype_list[0,:,:] == 1)    
+    
+    # snow everywhere
+    snowLevelData = np.ones((13,size_x,size_y))*0.
+    temperatureData = np.ones((13,size_x,size_y))*270.   
+    groundTemperatureData = np.ones((13,size_x,size_y))*270.
+    # test the precip type
+    prtype_list = diagnostic_prtype(precip_field,
+                          precipMetadataDictionary,
+                          startdate,
+                          snowLevelData,
+                          temperatureData,
+                          groundTemperatureData,
+                          modelMetadataDictionary,
+                          topographyData,
+                          topoMetadataDictionary)
+    print(np.uniqe(prtype_list)) # just for now
+    assert np.all(prtype_list[0,:,:] == 3)   
+    
+    # freezing rain everywhere
+    snowLevelData = np.ones((13,size_x,size_y))*300.
+    temperatureData = np.ones((13,size_x,size_y))*275.    
+    groundTemperatureData = np.ones((13,size_x,size_y))*260.
+    # test the precip type
+    prtype_list = diagnostic_prtype(precip_field,
+                          precipMetadataDictionary,
+                          startdate,
+                          snowLevelData,
+                          temperatureData,
+                          groundTemperatureData,
+                          modelMetadataDictionary,
+                          topographyData,
+                          topoMetadataDictionary)
+    print(np.uniqe(prtype_list)) # just for now
+    assert np.all(prtype_list[0,:,:] == 4)
+    
+    
+    
