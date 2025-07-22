@@ -32,8 +32,19 @@ def test_calculate_precip_type_rain():
     expected_result = np.ones((3, 4))
     assert_array_almost_equal(result, expected_result)
 
-def test_calculate_precip_type_snow():
-    # Test with snow
+def test_calculate_precip_type_snow_topohigh():
+    # Test with snow and high topography above snow level
+    precipitation_intensity_grid_mmph = np.ones((3, 4)) # precipitation of 1 mm/h
+    snow_level_grid_m = np.ones((3, 4)) * 100 # snow level at 200 m
+    topography_grid_m = np.ones((3, 4)) * 200 # topography at 100 m
+    ground_temperature_grid_degC = np.ones((3, 4)) * -10
+    temperature_grid_degC = np.ones((3, 4)) * -5
+    result = calculate_precip_type(snow_level_grid_m, temperature_grid_degC, ground_temperature_grid_degC, precipitation_intensity_grid_mmph, topography_grid_m)
+    expected_result = np.ones((3, 4)) * 3
+    assert_array_almost_equal(result, expected_result)
+
+def test_calculate_precip_type_snow_topolow():
+    # Test with snow but topography is lower than snow level
     precipitation_intensity_grid_mmph = np.ones((3, 4)) # precipitation of 1 mm/h
     snow_level_grid_m = np.ones((3, 4)) * 200 # snow level at 200 m
     topography_grid_m = np.ones((3, 4)) * 100 # topography at 100 m
