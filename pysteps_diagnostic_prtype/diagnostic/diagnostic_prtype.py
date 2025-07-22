@@ -22,17 +22,17 @@ from pysteps.io import import_netcdf_pysteps
 from pysteps.visualization import get_geogrid, get_basemap_axis
 
 
-def diagnostic_prtype(precip_field,
-                      precipMetadataDictionary,
+def diagnostic_prtype(precipitation_intensity_mmph,
+                      precipitation_metadata_dict,
                       startdate,
-                      snowLevelData,
-                      temperatureData,
-                      groundTemperatureData,
-                      modelMetadataDictionary,
-                      topographyData,
-                      topoMetadataDictionary,
-                      src_timestep=None,
-                      trgt_timestep=None,
+                      model_snow_level_m,
+                      model_temperature_degC,
+                      groundmodel_temperature_degC,
+                      model_metadata_dict,
+                      topography_data_m,
+                      topography_metadata_dict,
+                      model_timestep_min=None,
+                      precipitation_timestep_min=None,
                       **kwargs):
     """
     Calculate the precipitation types for ensemble data at particular time steps from a combination of a pysteps nowcast
@@ -41,11 +41,11 @@ def diagnostic_prtype(precip_field,
     Parameters
     ----------
 
-    precip_field : 2D, 3D or 4D Array
+    precipitation_intensity_mmph : 2D, 3D or 4D Array
       The precipitation field as observation (2d, [X-coord,Y-coord]), as deterministic nowcast (3D, [time step,X-coord,Y-coord]),
       or as probabilistic nowcast (4D, [member,time step,X-coord,Y-coord])
       
-    precipMetadataDictionary: dict
+    precipitation_metadata_dict: dict
       A dictionary containing the metadata for the precipitation input.
       Must contain the key "timestamps".
       See pysteps.io.importers for metadata doc.
@@ -54,30 +54,30 @@ def diagnostic_prtype(precip_field,
       The time and date of the model files in the format "%Y%m%d%H%M"
       e.g. 202305010000 for midnight on the 1st of May 2023.
 
-    snowLevelData: 3D Array
+    model_snow_level_m: 3D Array
       Data should be in the form of a 3D matrix. [time step, X-coord, Y-coord]
 
-    temperatureData: 3D Array
+    model_temperature_degC: 3D Array
       Data should be in the form of a 3D matrix. [time step, X-coord, Y-coord]
 
-    groundTemperatureData: 3D Array
+    groundmodel_temperature_degC: 3D Array
       Data should be in the form of a 3D matrix. [time step, X-coord, Y-coord]
 
-    modelMetadataDictionary: dict
+    model_metadata_dict: dict
       A dictionary containing the metadata for the snow level, temperature, and ground temperature data.
       See pysteps.io.importers for metadata doc.
 
-    topographyData: 2D Array
+    topography_data_m: 2D Array
       Data should be in the form of a 2D matrix. [X-coord, Y-coord]
 
-    topoMetadataDictionary: dict
+    topography_metadata_dict: dict
       A dictionary containing the metadata for the topography data.
       See pysteps.io.importers for metadata doc.
 
-    src_timestep : int
+    model_timestep_min : int
       The time step between two consecutive model fields as source. (dt in min)
 
-    trgt_timestep : int
+    precipitation_timestep_min : int
       The time step  between two consecutive precipitation nowcast as target. (dt in min)
 
     {extra_kwargs_doc}
@@ -88,62 +88,62 @@ def diagnostic_prtype(precip_field,
         A 2D or 3D array containing the precipitation type mask for every pixel
         where rain was observed/predicted.
         (a rainy pixel is a pixel with rain for any member if probabilistic input -> use the mask to apply for individual members afterwards)
-        Output arrays take the form [time step, precip_field X-coord, precip_field Y-coord].
-        Or [precip_field X-coord, precip_field Y-coord] in the case of observation as input.
+        Output arrays take the form [time step, precipitation_intensity_mmph X-coord, precipitation_intensity_mmph Y-coord].
+        Or [precipitation_intensity_mmph X-coord, precipitation_intensity_mmph Y-coord] in the case of observation as input.
     """
 
     # Run checks to ensure correct input parameters
-    if not isinstance(precipMetadataDictionary, dict):
+    if not isinstance(precipitation_metadata_dict, dict):
         raise TypeError(
-            "precipMetadataDictionary must be a dictionary containing the metadata about the precipitation field")
-    if not "timestamps" in precipMetadataDictionary.keys():
+            "precipitation_metadata_dict must be a dictionary containing the metadata about the precipitation field")
+    if not "timestamps" in precipitation_metadata_dict.keys():
         raise KeyError("precipitation field metadata must contain the key 'timestamps'")
 
-    if not isinstance(modelMetadataDictionary, dict):
+    if not isinstance(model_metadata_dict, dict):
         raise TypeError(
-            "modelMetadataDictionary must be a dictionary containing the metadata about the snow level, temperature, "
+            "model_metadata_dict must be a dictionary containing the metadata about the snow level, temperature, "
             "and ground temperature files")
 
-    if not isinstance(topoMetadataDictionary, dict):
-        raise TypeError("topoMetadataDictionary must be a dictionary containing metadata about the topography")
+    if not isinstance(topography_metadata_dict, dict):
+        raise TypeError("topography_metadata_dict must be a dictionary containing metadata about the topography")
 
-    if src_timestep is not None and (not isinstance(src_timestep, int) or not src_timestep > 0):
-        raise TypeError("src_timestep must be a positive integer")
+    if model_timestep_min is not None and (not isinstance(model_timestep_min, int) or not model_timestep_min > 0):
+        raise TypeError("model_timestep_min must be a positive integer")
 
-    if trgt_timestep is not None and (not isinstance(trgt_timestep, int) or not trgt_timestep > 0):
-        raise TypeError("trgt_timestep must be a positive integer")
+    if precipitation_timestep_min is not None and (not isinstance(precipitation_timestep_min, int) or not precipitation_timestep_min > 0):
+        raise TypeError("precipitation_timestep_min must be a positive integer")
 
     ####################################################################################
 
     # Define default parameter values
-    if src_timestep is None:
-        src_timestep = 60
-    if trgt_timestep is None:
-        trgt_timestep = 5
+    if model_timestep_min is None:
+        model_timestep_min = 60
+    if precipitation_timestep_min is None:
+        precipitation_timestep_min = 5
         
     # Convert startdate to datetime
     startdate = datetime.datetime.strptime(startdate, "%Y%m%d%H%M")
     
-    # Match precip_field dimension to expected shape ([member,time step,X-coord,Y-coord])
-    if len(precip_field.shape) == 2:
-        precip_field = precip_field[np.newaxis,:]
-    if len(precip_field.shape) == 3:
-        precip_field = precip_field[np.newaxis,:]
+    # Match precipitation_intensity_mmph dimension to expected shape ([member,time step,X-coord,Y-coord])
+    if len(precipitation_intensity_mmph.shape) == 2:
+        precipitation_intensity_mmph = precipitation_intensity_mmph[np.newaxis,:]
+    if len(precipitation_intensity_mmph.shape) == 3:
+        precipitation_intensity_mmph = precipitation_intensity_mmph[np.newaxis,:]
 
     # ---------------------------------------------------------------------------
 
     # Reproject
     
     #     topography over model grid
-    # # reproject function expects a 3D array -> add a time axis to topographyData
-    # topo_grid, _ = reproject_grids(topographyData[np.newaxis, :], snowLevelData[0, :, :], topoMetadataDictionary, modelMetadataDictionary)
+    # # reproject function expects a 3D array -> add a time axis to topography_data_m
+    # topo_grid, _ = reproject_grids(topography_data_m[np.newaxis, :], model_snow_level_m[0, :, :], topography_metadata_dict, model_metadata_dict)
     # topo_grid = topo_grid[0]#back to 2D array
     # print('Re-projection of topography grid done')
     #     projection over pySTEPS grid
-    snowLevelData, meta = reproject_grids(snowLevelData, precip_field[0, 0, :, :], modelMetadataDictionary, precipMetadataDictionary)
-    temperatureData, _ = reproject_grids(temperatureData, precip_field[0, 0, :, :], modelMetadataDictionary, precipMetadataDictionary)
-    groundTemperatureData, _ = reproject_grids(groundTemperatureData, precip_field[0, 0, :, :], modelMetadataDictionary, precipMetadataDictionary)
-    topo_grid, _ = reproject_grids(topographyData[np.newaxis, :], snowLevelData[0, :, :], topoMetadataDictionary, meta)
+    model_snow_level_m, meta = reproject_grids(model_snow_level_m, precipitation_intensity_mmph[0, 0, :, :], model_metadata_dict, precipitation_metadata_dict)
+    model_temperature_degC, _ = reproject_grids(model_temperature_degC, precipitation_intensity_mmph[0, 0, :, :], model_metadata_dict, precipitation_metadata_dict)
+    groundmodel_temperature_degC, _ = reproject_grids(groundmodel_temperature_degC, precipitation_intensity_mmph[0, 0, :, :], model_metadata_dict, precipitation_metadata_dict)
+    topo_grid, _ = reproject_grids(topography_data_m[np.newaxis, :], model_snow_level_m[0, :, :], topography_metadata_dict, meta)
     topo_grid = topo_grid[0]#back to 2D array
     print('Re-projection on precip grid done')
     # --------------------------------------------------------------------------
@@ -151,23 +151,23 @@ def diagnostic_prtype(precip_field,
     # Calculate temporal interpolation matrices
 
     # Calculate temporal interpolations values for matching timestamps between model and pySTEPS
-    interpolations_ZS, timestamps_idxs = generate_interpolations(snowLevelData, precipMetadataDictionary['timestamps'],
-                                                                 startdate, trgt_timestep, src_timestep)
-    interpolations_TT, _ = generate_interpolations(temperatureData, precipMetadataDictionary['timestamps'], startdate, trgt_timestep,
-                                                   src_timestep)
-    interpolations_TG, _ = generate_interpolations(groundTemperatureData, precipMetadataDictionary['timestamps'], startdate, trgt_timestep,
-                                                   src_timestep)
+    interpolations_ZS, timestamps_idxs = generate_interpolations(model_snow_level_m, precipitation_metadata_dict['timestamps'],
+                                                                 startdate, precipitation_timestep_min, model_timestep_min)
+    interpolations_TT, _ = generate_interpolations(model_temperature_degC, precipitation_metadata_dict['timestamps'], startdate, precipitation_timestep_min,
+                                                   model_timestep_min)
+    interpolations_TG, _ = generate_interpolations(groundmodel_temperature_degC, precipitation_metadata_dict['timestamps'], startdate, precipitation_timestep_min,
+                                                   model_timestep_min)
     print("Interpolation in time done!")
 
     # Clean (After interpolation, we don't need the reprojected data anymore)
-    del snowLevelData, temperatureData, groundTemperatureData, topographyData
+    del model_snow_level_m, model_temperature_degC, groundmodel_temperature_degC, topography_data_m
 
     # --------------------------------------------------------------------------
 
     # Diagnose precipitation type per member over time, using mean mask
 
     # WARNING (1): The grids have been sub-scripted to the model size. This requires the model metadata to
-    # be used for plotting. If the original PYSTEPS grid size is used (700x700) for plotting, the pysteps precipMetadataDictionary
+    # be used for plotting. If the original PYSTEPS grid size is used (700x700) for plotting, the pysteps precipitation_metadata_dict
     # should be used instead.
     #
     # WARNING (2): Topography does not need to be re-projected if it matches the grid size of the model.
@@ -182,27 +182,27 @@ def diagnostic_prtype(precip_field,
     # x1, x2, y1, y2 = get_reprojected_indexes(interpolations_ZS[0])
 
     # Result list
-    # ptype_list = np.zeros((precip_field.shape[1], x2 - x1, y2 - y1))
-    ptype_list = np.zeros((precip_field.shape[1], precip_field.shape[2], precip_field.shape[3]))
+    # ptype_list = np.zeros((precipitation_intensity_mmph.shape[1], x2 - x1, y2 - y1))
+    ptype_list = np.zeros((precipitation_intensity_mmph.shape[1], precipitation_intensity_mmph.shape[2], precipitation_intensity_mmph.shape[3]))
 
     # loop over timestamps
     for ts in range(len(timestamps_idxs)):
         print("Calculating precipitation types at: ", str(timestamps_idxs[ts]))
         
         # Members mean for this timestamp
-        # precip_field_mean = np.mean(precip_field[:, ts, x1:x2, y1:y2],axis=0)
-        precip_field_mean = np.mean(precip_field[:, ts, :, :],axis=0)
+        # precipitation_intensity_mmph_mean = np.mean(precipitation_intensity_mmph[:, ts, x1:x2, y1:y2],axis=0)
+        precipitation_intensity_mmph_mean = np.mean(precipitation_intensity_mmph[:, ts, :, :],axis=0)
         
         # Calculate precipitation type result with members mean
         # ptype_mean = calculate_precip_type(Znow=interpolations_ZS[ts, x1:x2, y1:y2],
         #                                    Temp=interpolations_TT[ts, x1:x2, y1:y2],
         #                                    GroundTemp=interpolations_TG[ts, x1:x2, y1:y2],
-        #                                    precipGrid=precip_field_mean,
+        #                                    precipGrid=precipitation_intensity_mmph_mean,
         #                                    topographyGrid=topo_grid[x1:x2, y1:y2])
         ptype_mean = calculate_precip_type(Znow=interpolations_ZS[ts],
                                            Temp=interpolations_TT[ts],
                                            GroundTemp=interpolations_TG[ts],
-                                           precipGrid=precip_field_mean,
+                                           precipGrid=precipitation_intensity_mmph_mean,
                                            topographyGrid=topo_grid)
         
         # Add mean result to output
@@ -480,8 +480,8 @@ def plot_ptype(ptype_grid, metadata, i, date_time, dir_gif, categoryNr=4):
     return filename
 
 
-def calculate_precip_type(Znow, Temp, GroundTemp, precipGrid, topographyGrid, DZML=100., TT0=2., TG0=0.,
-                          RRMIN=0):
+def calculate_precip_type(snow_level_grid_m, temperature_grid_degC, ground_temperature_grid_degCerature_grid_degC, precipitation_intensity_grid_mmph, topography_grid_m, melting_layer_thickness_m=100., freezing_rain_2m_temperature_with_frozen_ground_degC=2., freezing_rain_temperature_threshold_degC=0.,
+                          minimum_precipitation_threshold_mmph=0):
     """Precipitation type algorithm, returns a 2D matrix with categorical values:
     # PT=0  no precip
     # PT=1  rain
@@ -489,23 +489,23 @@ def calculate_precip_type(Znow, Temp, GroundTemp, precipGrid, topographyGrid, DZ
     # PT=3  snow
     # PT=4  freezing rain
 
-    Znow:
+    snow_level_grid_m:
         snow level 2D grid
-    Temp:
-        2m temperature 2D grid
-    GroundTemp:
-        ground temperature 2D grid
-    precipGrid:
+    temperature_grid_degC:
+        2m temperature_grid_degCerature 2D grid
+    ground_temperature_grid_degCerature_grid_degC:
+        ground temperature_grid_degCerature 2D grid
+    precipitation_intensity_grid_mmph:
         Precipitation (netCDF PYSTEPS) 2D grid
-    topographyGrid:
+    topography_grid_m:
         Topography grid 2D
-    DZML:
+    melting_layer_thickness_m:
         thickness of the melting layer (default 100m)
-    TT0:
-        2m temperature threshold below which rain will freeze when it hits a freezing ground (default 2C)
-    TG0:
-        temperature threshold for freezing rain, either for the 2m temperature or for the ground temperature
-    RRMIN:
+    freezing_rain_2m_temperature_with_frozen_ground_degC:
+        2m temperature_grid_degCerature threshold below which rain will freeze when it hits a freezing ground (default 2C)
+    freezing_rain_temperature_threshold_degC:
+        temperature_grid_degCerature threshold for freezing rain, either for the 2m temperature_grid_degCerature or for the ground temperature_grid_degCerature
+    minimum_precipitation_threshold_mmph:
         minimum precipitation threshold (default 0mm/h)
 
     returns:
@@ -513,16 +513,16 @@ def calculate_precip_type(Znow, Temp, GroundTemp, precipGrid, topographyGrid, DZ
     """
 
     # Result grid
-    result = np.zeros((precipGrid.shape[0], precipGrid.shape[1]))
-    topoZSDiffGrid = (Znow - topographyGrid)  # dzs -> higher means we are lower wrt the snow level
-    precipMask = (precipGrid > RRMIN)
+    result = np.zeros((precipitation_intensity_grid_mmph.shape[0], precipitation_intensity_grid_mmph.shape[1]))
+    topoZSDiffGrid = (snow_level_grid_m - topography_grid_m)  # dzs -> higher means we are lower wrt the snow level
+    precipMask = (precipitation_intensity_grid_mmph > minimum_precipitation_threshold_mmph)
 
-    # SNOW ((dzs<-1.5*DZML) || ( (ZH[i][j] <= 1.5*DZML) && (dzs<=0)))
-    snowMask = (topoZSDiffGrid < (-1.5 * DZML)) | ((topographyGrid <= (1.5 * DZML)) & (topoZSDiffGrid <= 0))
+    # SNOW ((dzs<-1.5*melting_layer_thickness_m) || ( (ZH[i][j] <= 1.5*melting_layer_thickness_m) && (dzs<=0)))
+    snowMask = (topoZSDiffGrid < (-1.5 * melting_layer_thickness_m)) | ((topography_grid_m <= (1.5 * melting_layer_thickness_m)) & (topoZSDiffGrid <= 0))
     result[snowMask & precipMask] = 3
 
-    # RAIN+SNOW DIAGNOSIS (dzs < 0.5 * DZML) = 2
-    rainSnowMask = ~snowMask & (topoZSDiffGrid < (0.5 * DZML))
+    # RAIN+SNOW DIAGNOSIS (dzs < 0.5 * melting_layer_thickness_m) = 2
+    rainSnowMask = ~snowMask & (topoZSDiffGrid < (0.5 * melting_layer_thickness_m))
     result[rainSnowMask & precipMask] = 2
 
     # RAIN
@@ -530,8 +530,8 @@ def calculate_precip_type(Znow, Temp, GroundTemp, precipGrid, topographyGrid, DZ
     result[rainMask & precipMask] = 1
 
     # FREEZING RAIN DIAGNOSIS 4
-    # if ((PT[i][j]==1) && ( (tg_<TG0 && TT[i][j]<TT0) || TT[i][j]<TG0))
-    freezingMask = (result == 1) & (((GroundTemp < TG0) & (Temp < TT0)) | (Temp < TG0))
+    # if ((PT[i][j]==1) && ( (tg_<freezing_rain_temperature_threshold_degC && TT[i][j]<freezing_rain_2m_temperature_with_frozen_ground_degC) || TT[i][j]<freezing_rain_temperature_threshold_degC))
+    freezingMask = (result == 1) & (((ground_temperature_grid_degCerature_grid_degC < freezing_rain_temperature_threshold_degC) & (temperature_grid_degC < freezing_rain_2m_temperature_with_frozen_ground_degC)) | (temperature_grid_degC < freezing_rain_temperature_threshold_degC))
     result[freezingMask] = 4
 
     return result
@@ -557,16 +557,16 @@ def get_reprojected_indexes(reprojectedGrid):
     return x_start, x_end, y_start, y_end
 
 
-def grid_interpolation(numpyGridStart, numpyGridEnd, trgt_timestep=5, src_timestep=60):
+def grid_interpolation(numpyGridStart, numpyGridEnd, interpolation_timestep_min=5, input_timestep_min=60):
     """ Time interpolation between 2 2D grids
 
     numpyGridStart:
         Numpy 2-D grid of start values
     numpyGridEnd:
         Numpy 2-D grid of end values
-    trgt_timestep:
+    interpolation_timestep_min:
         Time step for interpolation target grid in minutes
-    src_timestep:
+    input_timestep_min:
         Time of input grid in minutes
     applyOver:
         Array with sub-indexes to calculate interpolation (inner grid)
@@ -578,7 +578,7 @@ def grid_interpolation(numpyGridStart, numpyGridEnd, trgt_timestep=5, src_timest
     if numpyGridStart.shape != numpyGridEnd.shape:
         raise ValueError("ERROR: Grids have different dimensions")
 
-    interPoints = np.arange(0, (src_timestep + trgt_timestep), trgt_timestep)
+    interPoints = np.arange(0, (input_timestep_min + interpolation_timestep_min), interpolation_timestep_min)
     interpolationGrid = np.zeros((len(interPoints), numpyGridStart.shape[0], numpyGridStart.shape[1]))
     interpolationGrid[:, :, :] = np.nan
 
@@ -591,7 +591,7 @@ def grid_interpolation(numpyGridStart, numpyGridEnd, trgt_timestep=5, src_timest
     return interpolationGrid
 
 
-def create_timestamp_indexing(nrOfModelMessages, startDateTime, trgt_timestep=5, src_timestep=60):
+def create_timestamp_indexing(nrOfModelMessages, startDateTime, interpolation_timestep_min=5, model_timestep_min=60):
     """create a timestamp array for model indexing
 
     nrOfModelMessages:
@@ -600,10 +600,10 @@ def create_timestamp_indexing(nrOfModelMessages, startDateTime, trgt_timestep=5,
     startDateTime:
         Start date and time
 
-    trgt_timestep:
+    interpolation_timestep_min:
         Time step for interpolation in minutes
 
-    src_timestep:
+    model_timestep_min:
         Time step of model input in minutes
 
     ___
@@ -615,18 +615,18 @@ def create_timestamp_indexing(nrOfModelMessages, startDateTime, trgt_timestep=5,
         raise ValueError("Not enough interpolation messages, should be at least 2")
 
     result = []
-    interPoints = np.arange(0, (src_timestep + trgt_timestep), trgt_timestep)
+    interPoints = np.arange(0, (model_timestep_min + interpolation_timestep_min), interpolation_timestep_min)
 
     for i in range(nrOfModelMessages - 1):
         for j in interPoints[:-1]:
             result.append(startDateTime)
-            startDateTime = startDateTime + datetime.timedelta(minutes=trgt_timestep)
+            startDateTime = startDateTime + datetime.timedelta(minutes=interpolation_timestep_min)
 
     result.append(startDateTime)
     return np.array(result)
 
 
-def generate_interpolations(model_reprojected_data, nwc_timestamps, startdate, trgt_timestep=5, src_timestep=60,
+def generate_interpolations(model_reprojected_data, nwc_timestamps, startdate, interpolation_timestep_min=5, model_timestep_min=60,
                             dateFormat='%Y%m%d%H%M'):
     """Generate a sub-selection of the interpolation matrix for all messages available from model data
 
@@ -640,10 +640,10 @@ def generate_interpolations(model_reprojected_data, nwc_timestamps, startdate, t
     startdate:
         datetime object
         
-    trgt_timestep:
+    interpolation_timestep_min:
         Time step for interpolation in minutes
 
-    src_timestep:
+    model_timestep_min:
         Time step of model input in minutes
         
     dateFormat:
@@ -656,9 +656,9 @@ def generate_interpolations(model_reprojected_data, nwc_timestamps, startdate, t
     """
 
     # Create a timestamp index array for model interpolation matrix
-    model_timestamps = create_timestamp_indexing(model_reprojected_data.shape[0], startdate, trgt_timestep=trgt_timestep,
-                                                 src_timestep=src_timestep)
-    # Convert precipMetadataDictionary['timestamps'] to datetime
+    model_timestamps = create_timestamp_indexing(model_reprojected_data.shape[0], startdate, interpolation_timestep_min=interpolation_timestep_min,
+                                                 model_timestep_min=model_timestep_min)
+    # Convert precipitation_metadata_dict['timestamps'] to datetime
     nwc_ts = [datetime.datetime.strptime(ts.strftime(dateFormat), dateFormat) for ts in nwc_timestamps]
 
     model_start = np.where(model_timestamps == nwc_ts[0])[0][0]
@@ -675,7 +675,7 @@ def generate_interpolations(model_reprojected_data, nwc_timestamps, startdate, t
         if result_idx < resultMatrix.shape[0]:
             # calculate interpolations
             interpolationMatrix = grid_interpolation(model_reprojected_data[m - 1], model_reprojected_data[m],
-                                                     trgt_timestep=trgt_timestep, src_timestep=src_timestep)
+                                                     interpolation_timestep_min=interpolation_timestep_min, model_timestep_min=model_timestep_min)
             interp_idx = 0
             # Add the interpolation values to the result matrix (this assignment can be done without looping...)
             while interp_idx < interpolationMatrix.shape[0] and (result_idx < resultMatrix.shape[0]):
