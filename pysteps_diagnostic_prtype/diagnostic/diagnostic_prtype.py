@@ -194,16 +194,16 @@ def diagnostic_prtype(precipitation_intensity_mmph,
         precipitation_intensity_mmph_mean = np.mean(precipitation_intensity_mmph[:, ts, :, :],axis=0)
         
         # Calculate precipitation type result with members mean
-        # ptype_mean = calculate_precip_type(Znow=interpolations_ZS[ts, x1:x2, y1:y2],
-        #                                    Temp=interpolations_TT[ts, x1:x2, y1:y2],
-        #                                    GroundTemp=interpolations_TG[ts, x1:x2, y1:y2],
-        #                                    precipGrid=precipitation_intensity_mmph_mean,
-        #                                    topographyGrid=topo_grid[x1:x2, y1:y2])
-        ptype_mean = calculate_precip_type(Znow=interpolations_ZS[ts],
-                                           Temp=interpolations_TT[ts],
-                                           GroundTemp=interpolations_TG[ts],
-                                           precipGrid=precipitation_intensity_mmph_mean,
-                                           topographyGrid=topo_grid)
+        # ptype_mean = calculate_precip_type(snow_level_grid_m=interpolations_ZS[ts, x1:x2, y1:y2],
+        #                                    temperature_grid_degC=interpolations_TT[ts, x1:x2, y1:y2],
+        #                                    ground_temperature_grid_degC=interpolations_TG[ts, x1:x2, y1:y2],
+        #                                    precipitation_intensity_grid_mmph=precipitation_intensity_mmph_mean,
+        #                                    topography_grid_m=topo_grid[x1:x2, y1:y2])
+        ptype_mean = calculate_precip_type(snow_level_grid_m=interpolations_ZS[ts],
+                                           temperature_grid_degC=interpolations_TT[ts],
+                                           ground_temperature_grid_degC=interpolations_TG[ts],
+                                           precipitation_intensity_grid_mmph=precipitation_intensity_mmph_mean,
+                                           topography_grid_m=topo_grid)
         
         # Add mean result to output
         ptype_list[ts, :, :] = ptype_mean
@@ -480,7 +480,7 @@ def plot_ptype(ptype_grid, metadata, i, date_time, dir_gif, categoryNr=4):
     return filename
 
 
-def calculate_precip_type(snow_level_grid_m, temperature_grid_degC, ground_temperature_grid_degCerature_grid_degC, precipitation_intensity_grid_mmph, topography_grid_m, melting_layer_thickness_m=100., freezing_rain_2m_temperature_with_frozen_ground_degC=2., freezing_rain_temperature_threshold_degC=0.,
+def calculate_precip_type(snow_level_grid_m, temperature_grid_degC, ground_temperature_grid_degC, precipitation_intensity_grid_mmph, topography_grid_m, melting_layer_thickness_m=100., freezing_rain_2m_temperature_with_frozen_ground_degC=2., freezing_rain_temperature_threshold_degC=0.,
                           minimum_precipitation_threshold_mmph=0):
     """Precipitation type algorithm, returns a 2D matrix with categorical values:
     # PT=0  no precip
@@ -531,7 +531,7 @@ def calculate_precip_type(snow_level_grid_m, temperature_grid_degC, ground_tempe
 
     # FREEZING RAIN DIAGNOSIS 4
     # if ((PT[i][j]==1) && ( (tg_<freezing_rain_temperature_threshold_degC && TT[i][j]<freezing_rain_2m_temperature_with_frozen_ground_degC) || TT[i][j]<freezing_rain_temperature_threshold_degC))
-    freezingMask = (result == 1) & (((ground_temperature_grid_degCerature_grid_degC < freezing_rain_temperature_threshold_degC) & (temperature_grid_degC < freezing_rain_2m_temperature_with_frozen_ground_degC)) | (temperature_grid_degC < freezing_rain_temperature_threshold_degC))
+    freezingMask = (result == 1) & (((ground_temperature_grid_degC < freezing_rain_temperature_threshold_degC) & (temperature_grid_degC < freezing_rain_2m_temperature_with_frozen_ground_degC)) | (temperature_grid_degC < freezing_rain_temperature_threshold_degC))
     result[freezingMask] = 4
 
     return result
@@ -675,7 +675,7 @@ def generate_interpolations(model_reprojected_data, nwc_timestamps, startdate, i
         if result_idx < resultMatrix.shape[0]:
             # calculate interpolations
             interpolationMatrix = grid_interpolation(model_reprojected_data[m - 1], model_reprojected_data[m],
-                                                     interpolation_timestep_min=interpolation_timestep_min, model_timestep_min=model_timestep_min)
+                                                     interpolation_timestep_min=interpolation_timestep_min, input_timestep_min=model_timestep_min)
             interp_idx = 0
             # Add the interpolation values to the result matrix (this assignment can be done without looping...)
             while interp_idx < interpolationMatrix.shape[0] and (result_idx < resultMatrix.shape[0]):

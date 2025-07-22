@@ -126,7 +126,7 @@ def test_prtype_function():
                           model_metadata_dict,
                           topography_data_m,
                           topography_metadata_dict)
-    print(np.uniqe(prtype_list)) # just for now
+    print(np.unique(prtype_list)) # just for now
     assert np.all(prtype_list[0,:,:] == 1)    
     
     # snow everywhere
@@ -143,7 +143,7 @@ def test_prtype_function():
                           model_metadata_dict,
                           topography_data_m,
                           topography_metadata_dict)
-    print(np.uniqe(prtype_list)) # just for now
+    print(np.unique(prtype_list)) # just for now
     assert np.all(prtype_list[0,:,:] == 3)   
     
     # freezing rain everywhere
@@ -160,7 +160,7 @@ def test_prtype_function():
                           model_metadata_dict,
                           topography_data_m,
                           topography_metadata_dict)
-    print(np.uniqe(prtype_list)) # just for now
+    print(np.unique(prtype_list)) # just for now
     assert np.all(prtype_list[0,:,:] == 4)
     
     print('-- finished tests --')
