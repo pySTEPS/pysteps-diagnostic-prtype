@@ -31,7 +31,7 @@ def test_prtype_function():
     #    'startdate'
     #    'model_snow_level_m'
     #    'model_temperature_degC'
-    #    'groundmodel_temperature_degC'
+    #    'model_ground_temperature_degC'
     #    'model_metadata_dict'
     #    'topography_data_m'
     #    'topography_metadata_dict'
@@ -73,9 +73,9 @@ def test_prtype_function():
     # create artifical snow level as array [m]
     model_snow_level_m = np.ones((13,size_x,size_y))*300
     # create artifical temperature field as array [K]
-    model_temperature_degC = np.ones((13,size_x,size_y))*280    
+    model_temperature_degC = np.ones((13,size_x,size_y))*280-273.15    
     # create artifical surface temperature field as array [K]
-    groundmodel_temperature_degC = np.ones((13,size_x,size_y))*270    
+    model_ground_temperature_degC = np.ones((13,size_x,size_y))*270-273.15   
     # Model metadata is defined in pysteps.io.importers
     ## EPSG: 3812 (Belgian Lambert 2008) projection string
     projection='+proj=lcc +lat_1=49.83333333333334 +lat_2=51.16666666666666 +lat_0=50.797815 +lon_0=4.359215833333333 +x_0=649328 +y_0=665262 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs '
@@ -101,7 +101,7 @@ def test_prtype_function():
                           startdate,
                           model_snow_level_m,
                           model_temperature_degC,
-                          groundmodel_temperature_degC,
+                          model_ground_temperature_degC,
                           model_metadata_dict,
                           topography_data_m,
                           topography_metadata_dict)
@@ -114,54 +114,51 @@ def test_prtype_function():
     #### 0: no precip, 1: rain, 2: melting snow, 3: snow, 4: freezing rain, 5: hail, 6: severe hail
     # rain everywhere
     model_snow_level_m = np.ones((13,size_x,size_y))*1000.
-    model_temperature_degC = np.ones((13,size_x,size_y))*300.    
-    groundmodel_temperature_degC = np.ones((13,size_x,size_y))*295.    
+    model_temperature_degC = np.ones((13,size_x,size_y))*300.-273.15    
+    model_ground_temperature_degC = np.ones((13,size_x,size_y))*295.-273.15    
     # test the precip type
     prtype_list = diagnostic_prtype(precipitation_intensity_mmph,
                           precipitation_metadata_dict,
                           startdate,
                           model_snow_level_m,
                           model_temperature_degC,
-                          groundmodel_temperature_degC,
+                          model_ground_temperature_degC,
                           model_metadata_dict,
                           topography_data_m,
                           topography_metadata_dict)
-    print(np.unique(prtype_list)) # just for now
-    assert np.all(prtype_list[0,:,:] == 1)    
+    assert np.all(prtype_list[np.isfinite(prtype_list)] == 1)    
     
     # snow everywhere
-    model_snow_level_m = np.ones((13,size_x,size_y))*0.
-    model_temperature_degC = np.ones((13,size_x,size_y))*270.   
-    groundmodel_temperature_degC = np.ones((13,size_x,size_y))*270.
+    model_snow_level_m = np.ones((13,size_x,size_y))*50.
+    model_temperature_degC = np.ones((13,size_x,size_y))*270.-273.15   
+    model_ground_temperature_degC = np.ones((13,size_x,size_y))*270.-273.15
     # test the precip type
     prtype_list = diagnostic_prtype(precipitation_intensity_mmph,
                           precipitation_metadata_dict,
                           startdate,
                           model_snow_level_m,
                           model_temperature_degC,
-                          groundmodel_temperature_degC,
+                          model_ground_temperature_degC,
                           model_metadata_dict,
-                          topography_data_m,
+                          topography_data_m+300.,
                           topography_metadata_dict)
-    print(np.unique(prtype_list)) # just for now
-    assert np.all(prtype_list[0,:,:] == 3)   
+    assert np.all(prtype_list[np.isfinite(prtype_list)] == 3)   
     
     # freezing rain everywhere
     model_snow_level_m = np.ones((13,size_x,size_y))*300.
-    model_temperature_degC = np.ones((13,size_x,size_y))*275.    
-    groundmodel_temperature_degC = np.ones((13,size_x,size_y))*260.
+    model_temperature_degC = np.ones((13,size_x,size_y))*275.-273.15 
+    model_ground_temperature_degC = np.ones((13,size_x,size_y))*260.-273.15
     # test the precip type
     prtype_list = diagnostic_prtype(precipitation_intensity_mmph,
                           precipitation_metadata_dict,
                           startdate,
                           model_snow_level_m,
                           model_temperature_degC,
-                          groundmodel_temperature_degC,
+                          model_ground_temperature_degC,
                           model_metadata_dict,
                           topography_data_m,
                           topography_metadata_dict)
-    print(np.unique(prtype_list)) # just for now
-    assert np.all(prtype_list[0,:,:] == 4)
+    assert np.all(prtype_list[np.isfinite(prtype_list)] == 4)
     
     print('-- finished tests --')
     

@@ -43,7 +43,7 @@ def test_calculate_precip_type_snow_topohigh():
     expected_result = np.ones((3, 4)) * 3
     assert_array_almost_equal(result, expected_result)
 
-### Will never give snow since topography < snow level: should be freezing rain case T2m < TTO and TG < TG0
+### The following will never give snow since topography < snow level: should be freezing rain case T2m < TTO and TG < TG0
 # def test_calculate_precip_type_snow_topolow():
 #     # Test with snow but topography is lower than snow level
 #     precipitation_intensity_grid_mmph = np.ones((3, 4)) # precipitation of 1 mm/h
@@ -56,7 +56,7 @@ def test_calculate_precip_type_snow_topohigh():
 #     assert_array_almost_equal(result, expected_result)
 
 def test_calculate_precip_type_snow_topolow():
-    # Test with snow and topography above snow level but less than 1.5 times melting layer higher
+    # Test with snow and topography above snow level but difference less than 1.5 times melting layer higher
     # Snow only in lower evelation where topo <= 1.5 melting layer (100m) = 150m
     precipitation_intensity_grid_mmph = np.ones((3, 4)) # precipitation of 1 mm/h
     snow_level_grid_m = np.ones((3, 4)) * 100 # snow level at 100 m

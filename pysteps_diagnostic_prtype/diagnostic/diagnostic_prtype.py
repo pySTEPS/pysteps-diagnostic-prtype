@@ -27,7 +27,7 @@ def diagnostic_prtype(precipitation_intensity_mmph,
                       startdate,
                       model_snow_level_m,
                       model_temperature_degC,
-                      groundmodel_temperature_degC,
+                      model_ground_temperature_degC,
                       model_metadata_dict,
                       topography_data_m,
                       topography_metadata_dict,
@@ -60,7 +60,7 @@ def diagnostic_prtype(precipitation_intensity_mmph,
     model_temperature_degC: 3D Array
       Data should be in the form of a 3D matrix. [time step, X-coord, Y-coord]
 
-    groundmodel_temperature_degC: 3D Array
+    model_ground_temperature_degC: 3D Array
       Data should be in the form of a 3D matrix. [time step, X-coord, Y-coord]
 
     model_metadata_dict: dict
@@ -142,7 +142,7 @@ def diagnostic_prtype(precipitation_intensity_mmph,
     #     projection over pySTEPS grid
     model_snow_level_m, meta = reproject_grids(model_snow_level_m, precipitation_intensity_mmph[0, 0, :, :], model_metadata_dict, precipitation_metadata_dict)
     model_temperature_degC, _ = reproject_grids(model_temperature_degC, precipitation_intensity_mmph[0, 0, :, :], model_metadata_dict, precipitation_metadata_dict)
-    groundmodel_temperature_degC, _ = reproject_grids(groundmodel_temperature_degC, precipitation_intensity_mmph[0, 0, :, :], model_metadata_dict, precipitation_metadata_dict)
+    model_ground_temperature_degC, _ = reproject_grids(model_ground_temperature_degC, precipitation_intensity_mmph[0, 0, :, :], model_metadata_dict, precipitation_metadata_dict)
     topo_grid, _ = reproject_grids(topography_data_m[np.newaxis, :], model_snow_level_m[0, :, :], topography_metadata_dict, meta)
     topo_grid = topo_grid[0]#back to 2D array
     print('Re-projection on precip grid done')
@@ -155,12 +155,12 @@ def diagnostic_prtype(precipitation_intensity_mmph,
                                                                  startdate, precipitation_timestep_min, model_timestep_min)
     interpolations_TT, _ = generate_interpolations(model_temperature_degC, precipitation_metadata_dict['timestamps'], startdate, precipitation_timestep_min,
                                                    model_timestep_min)
-    interpolations_TG, _ = generate_interpolations(groundmodel_temperature_degC, precipitation_metadata_dict['timestamps'], startdate, precipitation_timestep_min,
+    interpolations_TG, _ = generate_interpolations(model_ground_temperature_degC, precipitation_metadata_dict['timestamps'], startdate, precipitation_timestep_min,
                                                    model_timestep_min)
     print("Interpolation in time done!")
 
     # Clean (After interpolation, we don't need the reprojected data anymore)
-    del model_snow_level_m, model_temperature_degC, groundmodel_temperature_degC, topography_data_m
+    del model_snow_level_m, model_temperature_degC, model_ground_temperature_degC, topography_data_m
 
     # --------------------------------------------------------------------------
 
@@ -204,7 +204,6 @@ def diagnostic_prtype(precipitation_intensity_mmph,
                                            ground_temperature_grid_degC=interpolations_TG[ts],
                                            precipitation_intensity_grid_mmph=precipitation_intensity_mmph_mean,
                                            topography_grid_m=topo_grid)
-        
         # Add mean result to output
         ptype_list[ts, :, :] = ptype_mean
 
@@ -519,20 +518,24 @@ def calculate_precip_type(snow_level_grid_m, temperature_grid_degC, ground_tempe
 
     # SNOW ((dzs<-1.5*melting_layer_thickness_m) || ( (ZH[i][j] <= 1.5*melting_layer_thickness_m) && (dzs<=0)))
     snowMask = (topoZSDiffGrid < (-1.5 * melting_layer_thickness_m)) | ((topography_grid_m <= (1.5 * melting_layer_thickness_m)) & (topoZSDiffGrid <= 0))
-    result[snowMask & precipMask] = 3
+    result[snowMask & precipMask] = 3.
 
     # RAIN+SNOW DIAGNOSIS (dzs < 0.5 * melting_layer_thickness_m) = 2
     rainSnowMask = ~snowMask & (topoZSDiffGrid < (0.5 * melting_layer_thickness_m))
-    result[rainSnowMask & precipMask] = 2
+    result[rainSnowMask & precipMask] = 2.
 
     # RAIN
     rainMask = ~snowMask & ~rainSnowMask
-    result[rainMask & precipMask] = 1
+    result[rainMask & precipMask] = 1.
 
     # FREEZING RAIN DIAGNOSIS 4
     # if ((PT[i][j]==1) && ( (tg_<freezing_rain_temperature_threshold_degC && TT[i][j]<freezing_rain_2m_temperature_with_frozen_ground_degC) || TT[i][j]<freezing_rain_temperature_threshold_degC))
     freezingMask = (result == 1) & (((ground_temperature_grid_degC < freezing_rain_temperature_threshold_degC) & (temperature_grid_degC < freezing_rain_2m_temperature_with_frozen_ground_degC)) | (temperature_grid_degC < freezing_rain_temperature_threshold_degC))
-    result[freezingMask] = 4
+    result[freezingMask] = 4.
+    
+    # Apply the nans (no prtype or grid points without radar and/or nwp data)
+    for input_grid in (snow_level_grid_m, temperature_grid_degC, ground_temperature_grid_degC, precipitation_intensity_grid_mmph):
+        result[np.isnan(input_grid)] = np.nan
 
     return result
 
@@ -684,4 +687,4 @@ def generate_interpolations(model_reprojected_data, nwc_timestamps, startdate, i
                 interp_idx = interp_idx + 1
             result_idx = result_idx - 1  # overwrite the last value
 
-            return resultMatrix[model_start:], timestamp_selection
+    return resultMatrix[model_start:], timestamp_selection
