@@ -24,7 +24,12 @@ entry_label = 'pysteps.plugins.' + 'diagnostic'
 # Then loop over the functions to set all entry_points.
 entry = {
     entry_label: [
-        'diagnostic_prtype=pysteps_diagnostic_prtype.diagnostic.diagnostic_prtype:diagnostic_prtype'
+        'diagnostic_prtype=pysteps_diagnostic_prtype.diagnostic.diagnostic_prtype:diagnostic_prtype',
+        'calculate_precip_type=pysteps_diagnostic_prtype.diagnostic.diagnostic_prtype:calculate_precip_type',
+        'get_reprojected_indexes=pysteps_diagnostic_prtype.diagnostic.diagnostic_prtype:get_reprojected_indexes',
+        'grid_interpolation=pysteps_diagnostic_prtype.diagnostic.diagnostic_prtype:grid_interpolation',
+        'create_timestamp_indexing=pysteps_diagnostic_prtype.diagnostic.diagnostic_prtype:create_timestamp_indexing',
+        'generate_interpolations=pysteps_diagnostic_prtype.diagnostic.diagnostic_prtype:generate_interpolations',
     ]
 }
 
